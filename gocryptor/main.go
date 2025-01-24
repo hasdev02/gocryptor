@@ -45,8 +45,6 @@ func main() {
 
 	flag.Parse()
 
-	fmt.Println(*file)
-
 	// CHECK NON EMPTY PARAMETERS
 	if *mode == "" || *file == "" || *password == "" {
 		fmt.Println("PARAMETERS: -mode=(encrypt|decrypt) -file=<file_path> -password=<password>")
