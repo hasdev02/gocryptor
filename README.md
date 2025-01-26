@@ -10,17 +10,19 @@ Encrypt and decrypt files using XChaCha20
 
 ## METHOD
 File is encrypted using XChaCha20 from a derived Argon2id key.
-The first 40 bytes of the encrypted file contains encrypted salt and nonce, followed by plaintext salt and nonce, then the encrypted file data. Sha256 sum of the original file is stored at the end.
+The first 16 bytes of the encrypted file contains HMAC_SHA256 calculated from the salt and nonce using the cipher key, followed by plaintext salt and nonce, then the encrypted file data. Sha256 sum of the original file is stored at the end.
 
-With the encrypted salt and nonce we auth the decryption ensuring the password given is correct and also ensures the salt and nonce are valid.
+With the HMAC_SHA256 we auth the decryption ensuring the password given is correct and also ensures the salt and nonce are valid.
 
 With the sha256 hash we can detect any modification/corruption of the encrypted file.
 
 File structure:
 ```
+ENCRYPTED FILE STRUCTURE
+
 +--------------------------+---------------------------------------+
-|   Salt+Nonce Encrypted   |      ENCRYPTED WITH XCHACHA20         |
-|      (4Obytes)           |                                       |
+|        HMAC              |      HMAC-SHA256                      |
+|      (32bytes)           |                                       |
 +--------------------------+---------------------------------------+
 |       Salt  (16 bytes)   |  ARGON2 HASH SALT                     |
 +--------------------------+---------------------------------------+
