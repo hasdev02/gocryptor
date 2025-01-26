@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/hmac"
 	"crypto/rand"
 	"crypto/sha256"
 	"fmt"
@@ -35,7 +36,7 @@ func EncryptFile(file, password string) error {
 	}
 
 	//KEY IS PASSWORD ARGON2 HASH
-	key := argon2.IDKey([]byte(password), salt, 1, ArgonMemory, 4, chacha20.KeySize)
+	key := argon2.IDKey([]byte(password), salt, ArgonIterations, ArgonMemory, 4, chacha20.KeySize)
 
 	//GENERATE NONCE
 	nonce := make([]byte, NonceSize)
@@ -49,13 +50,13 @@ func EncryptFile(file, password string) error {
 		return fmt.Errorf("ERROR WHILE INITILIAZE XCHACHA20 AEAD: %w", err)
 	}
 
-	//ENCRYPT NONCE+SALT
-	hmacData := append(salt, nonce...)
-	hmacEncrypted := make([]byte, len(hmacData))
-	cipher.XORKeyStream(hmacEncrypted, hmacData)
+	//GENERATE HMAC
+	hmac := hmac.New(sha256.New, key)
+	hmac.Write(append(salt, nonce...))
+	hmacData := hmac.Sum(nil)
 
-	//WRITE ENCRYPTED NONCE+SALT AT THE START OF THE FILE
-	if _, err := out.Write(hmacEncrypted); err != nil {
+	//WRITE HMAC AT THE START OF THE FILE
+	if _, err := out.Write(hmacData); err != nil {
 		return fmt.Errorf("ERROR WHILE WRITING HMAC AT THE START OF THE FILE: %w", err)
 	}
 

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/hmac"
 	"bytes"
 	"crypto/sha256"
 	"fmt"
@@ -21,10 +22,10 @@ func DecryptFile(file, password string) error {
 	}
 	defer in.Close()
 
-	//GET METADATA FROM ENCRYPTED FILE, METADATA IS ENCRYPTED SALT + NONCE
-	encryptedMetadata := make([]byte, SaltSize + NonceSize)
-	if _, err := in.Read(encryptedMetadata); err != nil {
-		return fmt.Errorf("ERROR WHILE READING ENCRYPTED METADATA: %w", err)
+	//GET HMAC FROM ENCRYPTED FILE
+	fileHmac := make([]byte, HmacSize)
+	if _, err := in.Read(fileHmac); err != nil {
+		return fmt.Errorf("ERROR WHILE READING HMAC: %w", err)
 	}
 
 	//GET SALT FROM ENCRYPTED FILE
@@ -40,19 +41,21 @@ func DecryptFile(file, password string) error {
 	}
 
 	//GET PASSWORD HASH, THIS IS THE ENCRYPTION KEY
-	key := argon2.IDKey([]byte(password), salt, 1, ArgonMemory, 4, chacha20.KeySize)
+	key := argon2.IDKey([]byte(password), salt, ArgonIterations, ArgonMemory, 4, chacha20.KeySize)
 
 	cipher, err := chacha20.NewUnauthenticatedCipher(key, nonce)
 	if err != nil {
 		return fmt.Errorf("ERROR WHILE INITILIAZE XCHACHA20 STREAM CIPHER: %w", err)
 	}
 
-	//VERIFY ENCRYPTED METADATA IS VALID
-	expectedMetadata := make([]byte, SaltSize + NonceSize)
-	cipher.XORKeyStream(expectedMetadata, append(salt, nonce...))
+	//CALCULATE HMAC
+	expectedHmac := hmac.New(sha256.New, key)
+	expectedHmac.Write(append(salt, nonce...))
+	exptectedHmacData := expectedHmac.Sum(nil)
 
-	if !bytes.Equal(expectedMetadata, encryptedMetadata) {
-		return fmt.Errorf("INVALID METADATA, PASSWORD IS WRONG")
+	//VERIFY HMAC
+	if !bytes.Equal(exptectedHmacData, fileHmac) {
+		return fmt.Errorf("INVALID HMAC, PASSWORD IS WRONG")
 	}
 
 	//CREATE DECRYPTED FILE
@@ -68,8 +71,8 @@ func DecryptFile(file, password string) error {
 		return fmt.Errorf("ERROR WHILE READING ENCRYPTED FILE STAT: %v", err)
 	}
 
-	//FULL FILE SIZE - (ENCRYPTED_METADATA) - (SALT) - (NONCE) - (SHA256SUM)
-	encryptedDataSize := encryptedFileStat.Size() - MetadataSize - SaltSize - NonceSize - Sha256SumSize
+	//FULL FILE SIZE - (HMAC) - (SALT) - (NONCE) - (SHA256SUM)
+	encryptedDataSize := encryptedFileStat.Size() - HmacSize - SaltSize - NonceSize - Sha256SumSize
 
 	buffer := make([]byte, BlockSize)
 	hasher := sha256.New()

@@ -12,18 +12,17 @@ const (
 	NonceSize = 24
 	BlockSize = 64 * 1024
 	EncryptedFileExtension = ".gocrypted"
-	ArgonMemory = 64 * 1024
-	MetadataSize = SaltSize + NonceSize
+	ArgonIterations = 3
+	ArgonMemory = 64 * 1024 //64 MB
+	HmacSize = 32
 )
 
 /*
 ENCRYPTED FILE STRUCTURE
 
-SALT+NONCE IS ENCRYPTED WITH THE SAME KEY AND NONCE AS THE FILE
-
 +--------------------------+---------------------------------------+
-|   Salt+Nonce Encrypted   |      ENCRYPTED WITH XCHACHA20         |
-|      (4Obytes)           |                                       |
+|        HMAC              |      HMAC-SHA256                      |
+|      (32bytes)           |                                       |
 +--------------------------+---------------------------------------+
 |       Salt  (16 bytes)   |  ARGON2 HASH SALT                     |
 +--------------------------+---------------------------------------+
