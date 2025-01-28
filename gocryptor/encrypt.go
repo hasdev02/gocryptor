@@ -47,7 +47,7 @@ func EncryptFile(file, password string) error {
 	//CREATE XCHACHA20 CIPHER STREAM
 	cipher, err := chacha20.NewUnauthenticatedCipher(key, nonce)
 	if err != nil {
-		return fmt.Errorf("ERROR WHILE INITILIAZE XCHACHA20 AEAD: %w", err)
+		return fmt.Errorf("ERROR WHILE INITILIAZE XCHACHA20: %w", err)
 	}
 
 	//GENERATE HMAC
